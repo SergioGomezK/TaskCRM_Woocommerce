@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Formulario de Clientes</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+</head>
+<body>
+  <main class="page">
+    <section class="card">
+      <h1>Formulario de Clientes</h1>
+      <p class="subtitle">Envio directo al modulo Contacts de Vtiger</p>
+
+      {% if success_message %}
+      <div class="alert success">
+        <strong>{{ success_message }}</strong>
+        {% if crm_record_id %}
+        <span>ID CRM: {{ crm_record_id }}</span>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if errors.get('crm') %}
+      <div class="alert error">{{ errors['crm'] }}</div>
+      {% endif %}
+
+      <form method="post" action="/clientes/form" novalidate>
+        <div class="grid">
+          <label>
+            Nombre
+            <input type="text" name="first_name" value="{{ form_data.get('first_name', '') }}" required>
+            {% if errors.get('first_name') %}<small class="field-error">{{ errors['first_name'] }}</small>{% endif %}
+          </label>
+
+          <label>
+            Apellido
+            <input type="text" name="last_name" value="{{ form_data.get('last_name', '') }}" required>
+            {% if errors.get('last_name') %}<small class="field-error">{{ errors['last_name'] }}</small>{% endif %}
+          </label>
+
+          <label>
+            Correo electronico
+            <input type="email" name="email" value="{{ form_data.get('email', '') }}" required>
+            {% if errors.get('email') %}<small class="field-error">{{ errors['email'] }}</small>{% endif %}
+          </label>
+
+          <label>
+            Telefono
+            <input type="text" name="phone" value="{{ form_data.get('phone', '') }}">
+            {% if errors.get('phone') %}<small class="field-error">{{ errors['phone'] }}</small>{% endif %}
+          </label>
+
+          <label>
+            Empresa
+            <input type="text" name="company" value="{{ form_data.get('company', '') }}">
+            {% if errors.get('company') %}<small class="field-error">{{ errors['company'] }}</small>{% endif %}
+          </label>
+
+          <label>
+            Origen del lead
+            <input type="text" name="lead_source" value="{{ form_data.get('lead_source', '') }}">
+            {% if errors.get('lead_source') %}<small class="field-error">{{ errors['lead_source'] }}</small>{% endif %}
+          </label>
+        </div>
+
+        <label class="full">
+          Comentario
+          <textarea name="comment" rows="5">{{ form_data.get('comment', '') }}</textarea>
+          {% if errors.get('comment') %}<small class="field-error">{{ errors['comment'] }}</small>{% endif %}
+        </label>
+
+        <button type="submit">Enviar a CRM</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
