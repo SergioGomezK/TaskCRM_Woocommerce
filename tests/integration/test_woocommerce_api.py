@@ -29,8 +29,8 @@ def _payload() -> dict[str, object]:
         "billing": {
             "first_name": "Ana",
             "last_name": "Perez",
-            "address_1": "Calle 1",
-            "city": "Bogota",
+            "address_1": "",
+            "city": "",
             "country": "CO",
             "email": "ana@example.com",
             "phone": "3001234567",
@@ -38,8 +38,8 @@ def _payload() -> dict[str, object]:
         "shipping": {
             "first_name": "Ana",
             "last_name": "Perez",
-            "address_1": "Calle 1",
-            "city": "Bogota",
+            "address_1": "",
+            "city": "",
             "country": "CO",
         },
         "line_items": [{"product_id": 55, "quantity": 1}],

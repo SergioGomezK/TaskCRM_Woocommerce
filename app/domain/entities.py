@@ -39,11 +39,11 @@ class WooOrderLineItem:
 class WooBilling:
     first_name: str
     last_name: str
-    address_1: str
-    city: str
-    country: str
-    email: str
+    email: str 
     phone: str
+    address_1: str | None = None
+    city: str  | None = None
+    country: str | None = None
     address_2: str | None = None
     state: str | None = None
     postcode: str | None = None
@@ -53,9 +53,9 @@ class WooBilling:
 class WooShipping:
     first_name: str
     last_name: str
-    address_1: str
-    city: str
-    country: str
+    address_1: str | None = None
+    city: str | None = None
+    country: str | None = None
     address_2: str | None = None
     state: str | None = None
     postcode: str | None = None
@@ -78,3 +78,54 @@ class WooOrderResult:
     status: str
     total: str
     currency: str
+
+
+@dataclass(frozen=True, slots=True)
+class CRMLeadForSync:
+    lead_id: str
+    first_name: str | None
+    last_name: str | None
+    email: str | None
+    phone: str | None
+    address_1: str | None
+    city: str | None
+    country: str | None
+    state: str | None
+    postcode: str | None
+    product_id: int | None
+    woo_order_id: str | None
+    sync_status: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class LeadSyncItemResult:
+    lead_id: str
+    status: str
+    woo_order_id: str | None = None
+    error: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class LeadSyncBatchResult:
+    processed: int
+    created: int
+    failed: int
+    skipped: int
+    items: list[LeadSyncItemResult]
+
+
+@dataclass(frozen=True, slots=True)
+class LeadCheckoutLinkItemResult:
+    lead_id: str
+    status: str
+    checkout_url: str | None = None
+    error: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class LeadCheckoutLinkBatchResult:
+    processed: int
+    generated: int
+    failed: int
+    skipped: int
+    items: list[LeadCheckoutLinkItemResult]

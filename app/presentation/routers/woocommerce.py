@@ -16,7 +16,7 @@ from app.presentation.schemas.woocommerce_order import (
 router = APIRouter(prefix="/woocommerce", tags=["woocommerce"])
 
 
-@router.post("/orders", response_model=WooCreateOrderResponse)
+@router.post("/orders", response_model=WooCreateOrderResponse, deprecated=True)
 async def create_order(
     payload: WooCreateOrderRequest,
     request: Request,

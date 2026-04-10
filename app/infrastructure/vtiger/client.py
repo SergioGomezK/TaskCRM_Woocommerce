@@ -5,7 +5,7 @@ from typing import Any
 
 import requests
 
-from app.domain.entities import CRMCreateResult, CRMLeadSummary, ClientLead
+from app.domain.entities import CRMCreateResult, CRMLeadForSync, CRMLeadSummary, ClientLead
 from app.domain.errors import (
     CRMAuthenticationError,
     CRMNetworkError,
@@ -77,6 +77,69 @@ class VtigerClient(CRMClientPort):
             safe_limit,
         )
         return leads
+
+    def list_leads_for_sync(
+        self,
+        *,
+        limit: int,
+        sync_status_value: str,
+        request_id: str | None = None,
+    ) -> list[CRMLeadForSync]:
+        safe_limit = max(1, min(limit, 500))
+        token = self._get_challenge()
+        session_name, _user_id = self._login(token)
+        leads = self._query_leads_for_sync(
+            session_name=session_name,
+            limit=safe_limit,
+            sync_status_value=sync_status_value,
+        )
+        self._logger.info(
+            "vtiger_sync_candidates_listed request_id=%s count=%s limit=%s",
+            request_id,
+            len(leads),
+            safe_limit,
+        )
+        return leads
+
+    def update_lead_sync_result(
+        self,
+        *,
+        lead_id: str,
+        sync_status: str,
+        woo_order_id: str | None = None,
+        sync_error: str | None = None,
+        request_id: str | None = None,
+    ) -> None:
+        token = self._get_challenge()
+        session_name, _user_id = self._login(token)
+
+        element: dict[str, str] = {
+            "id": lead_id,
+            self._settings.vtiger_lead_field_sync_status: sync_status,
+        }
+        if woo_order_id is not None:
+            element[self._settings.vtiger_lead_field_woo_order_id] = woo_order_id
+        if sync_error is not None:
+            element[self._settings.vtiger_lead_field_sync_error] = _truncate(sync_error, 240)
+        else:
+            element[self._settings.vtiger_lead_field_sync_error] = ""
+
+        result = self._call_operation(
+            method="POST",
+            data={
+                "operation": "revise",
+                "sessionName": session_name,
+                "element": json.dumps(element),
+            },
+        )
+        if not isinstance(result, dict):
+            raise CRMUnexpectedError("Vtiger revise result has invalid shape.")
+        self._logger.info(
+            "vtiger_sync_result_updated request_id=%s lead_id=%s sync_status=%s",
+            request_id,
+            lead_id,
+            sync_status,
+        )
 
     def _get_challenge(self) -> str:
         result = self._call_operation(
@@ -165,6 +228,57 @@ class VtigerClient(CRMClientPort):
             )
         return leads
 
+    def _query_leads_for_sync(
+        self, *, session_name: str, limit: int, sync_status_value: str
+    ) -> list[CRMLeadForSync]:
+        product_field = self._settings.vtiger_lead_field_product_id
+        woo_order_field = self._settings.vtiger_lead_field_woo_order_id
+        sync_status_field = self._settings.vtiger_lead_field_sync_status
+        escaped_status = sync_status_value.replace("'", "\\'")
+        query = (
+            "SELECT id, firstname, lastname, email, phone, lane, city, state, code, country, "
+            f"{product_field}, {woo_order_field}, {sync_status_field} "
+            "FROM Leads "
+            f"WHERE {sync_status_field} = '{escaped_status}' "
+            f"LIMIT {limit};"
+        )
+        result = self._call_operation(
+            method="GET",
+            params={
+                "operation": "query",
+                "sessionName": session_name,
+                "query": query,
+            },
+        )
+        if not isinstance(result, list):
+            raise CRMUnexpectedError("Vtiger sync leads query did not return a list.")
+
+        leads: list[CRMLeadForSync] = []
+        for item in result:
+            if not isinstance(item, dict):
+                continue
+            lead_id = _clean_nullable(item.get("id"))
+            if not lead_id:
+                continue
+            leads.append(
+                CRMLeadForSync(
+                    lead_id=lead_id,
+                    first_name=_clean_nullable(item.get("firstname")),
+                    last_name=_clean_nullable(item.get("lastname")),
+                    email=_clean_nullable(item.get("email")),
+                    phone=_clean_nullable(item.get("phone")),
+                    address_1=_clean_nullable(item.get("lane")),
+                    city=_clean_nullable(item.get("city")),
+                    country=_clean_nullable(item.get("country")),
+                    state=_clean_nullable(item.get("state")),
+                    postcode=_clean_nullable(item.get("code")),
+                    product_id=_to_int(item.get(product_field)),
+                    woo_order_id=_clean_nullable(item.get(woo_order_field)),
+                    sync_status=_clean_nullable(item.get(sync_status_field)),
+                )
+            )
+        return leads
+
     def _call_operation(
         self,
         *,
@@ -226,3 +340,19 @@ def _clean_nullable(value: Any) -> str | None:
         return None
     normalized = str(value).strip()
     return normalized or None
+
+
+def _to_int(value: Any) -> int | None:
+    normalized = _clean_nullable(value)
+    if normalized is None:
+        return None
+    try:
+        return int(normalized)
+    except ValueError:
+        return None
+
+
+def _truncate(value: str, max_length: int) -> str:
+    if len(value) <= max_length:
+        return value
+    return value[: max_length - 3] + "..."

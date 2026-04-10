@@ -2,10 +2,13 @@ from typing import Protocol
 
 from app.domain.entities import (
     CRMCreateResult,
+    CRMLeadForSync,
     CRMLeadSummary,
     ClientLead,
+    WooBilling,
     WooOrderInput,
     WooOrderResult,
+    WooShipping,
 )
 
 
@@ -20,9 +23,41 @@ class CRMClientPort(Protocol):
     ) -> list[CRMLeadSummary]:
         """List leads from CRM."""
 
+    def list_leads_for_sync(
+        self,
+        *,
+        limit: int,
+        sync_status_value: str,
+        request_id: str | None = None,
+    ) -> list[CRMLeadForSync]:
+        """List leads that are candidates to sync with WooCommerce."""
+
+    def update_lead_sync_result(
+        self,
+        *,
+        lead_id: str,
+        sync_status: str,
+        woo_order_id: str | None = None,
+        sync_error: str | None = None,
+        request_id: str | None = None,
+    ) -> None:
+        """Persist synchronization result in lead custom fields."""
+
 
 class WooCommercePort(Protocol):
     def create_order(
         self, order: WooOrderInput, request_id: str | None = None
     ) -> WooOrderResult:
         """Create an order in WooCommerce."""
+
+
+class CheckoutLinkPort(Protocol):
+    def build_checkout_url(
+        self,
+        *,
+        product_id: int,
+        quantity: int,
+        billing: WooBilling,
+        shipping: WooShipping,
+    ) -> str:
+        """Build a WooCommerce checkout URL with prefilled parameters."""
