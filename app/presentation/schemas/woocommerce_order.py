@@ -34,16 +34,16 @@ class WooBillingInput(BaseModel):
 
     first_name: ShortText
     last_name: ShortText
-    address_1: AddressText
+    address_1: AddressText | None = None
     address_2: OptionalText | None = None
-    city: ShortText
+    city: ShortText | None = None
     state: OptionalText | None = None
     postcode: OptionalText | None = None
     country: Annotated[str, StringConstraints(min_length=2, max_length=2)]
     email: EmailStr
     phone: ShortText
 
-    @field_validator("address_2", "state", "postcode", mode="before")
+    @field_validator("address_1", "address_2", "city", "state", "postcode", mode="before")
     @classmethod
     def empty_to_none(cls, value: str | None) -> str | None:
         if value is None:
@@ -76,14 +76,14 @@ class WooShippingInput(BaseModel):
 
     first_name: ShortText
     last_name: ShortText
-    address_1: AddressText
+    address_1: AddressText | None = None
     address_2: OptionalText | None = None
-    city: ShortText
+    city: ShortText | None = None
     state: OptionalText | None = None
     postcode: OptionalText | None = None
     country: Annotated[str, StringConstraints(min_length=2, max_length=2)]
 
-    @field_validator("address_2", "state", "postcode", mode="before")
+    @field_validator("address_1", "address_2", "city", "state", "postcode", mode="before")
     @classmethod
     def empty_to_none(cls, value: str | None) -> str | None:
         if value is None:

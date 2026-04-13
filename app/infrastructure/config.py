@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     vtiger_lead_field_woo_order_id: str = "woo_order_id"
     vtiger_lead_field_sync_status: str = "sync_status"
     vtiger_lead_field_sync_error: str = "sync_error"
+    vtiger_lead_field_student_id_type: str = "student_id_type"
+    vtiger_lead_field_student_id_number: str = "student_id_number"
+    vtiger_lead_field_student_academic_program: str = "student_academic_program"
     vtiger_sync_pending_value: str = "pending"
     vtiger_sync_processed_value: str = "processed"
     vtiger_sync_failed_value: str = "failed"
@@ -68,6 +71,9 @@ class Settings(BaseSettings):
         "vtiger_lead_field_woo_order_id",
         "vtiger_lead_field_sync_status",
         "vtiger_lead_field_sync_error",
+        "vtiger_lead_field_student_id_type",
+        "vtiger_lead_field_student_id_number",
+        "vtiger_lead_field_student_academic_program",
         "vtiger_sync_pending_value",
         "vtiger_sync_processed_value",
         "vtiger_sync_failed_value",

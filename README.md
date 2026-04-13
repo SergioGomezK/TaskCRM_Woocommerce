@@ -29,6 +29,9 @@ Aplicacion con formulario HTML para crear pre-contactos en `Leads`, API JSON par
    - `VTIGER_LEAD_FIELD_WOO_ORDER_ID`
    - `VTIGER_LEAD_FIELD_SYNC_STATUS`
    - `VTIGER_LEAD_FIELD_SYNC_ERROR`
+   - `VTIGER_LEAD_FIELD_STUDENT_ID_TYPE`
+   - `VTIGER_LEAD_FIELD_STUDENT_ID_NUMBER`
+   - `VTIGER_LEAD_FIELD_STUDENT_ACADEMIC_PROGRAM`
    - `VTIGER_SYNC_PENDING_VALUE`
    - `VTIGER_SYNC_PROCESSED_VALUE`
    - `VTIGER_SYNC_FAILED_VALUE`
@@ -92,6 +95,15 @@ curl -X POST http://localhost:8000/woocommerce/orders \
 curl -X POST "http://localhost:8000/integrations/vtiger/leads-to-checkout-links/sync?limit=50" \
   -H "X-Integration-Key: $INTEGRATION_API_KEY"
 ```
+
+La URL generada por cada lead tiene formato:
+
+`https://tu-tienda/finalizar-compra/?add-to-cart={product_id}&student_first_name=...&student_last_name=...&student_id_type=...&student_id_number=...&student_country=...&student_state=...&student_address=...&student_postcode=...&student_phone=...&student_email=...&student_academic_program=...`
+
+`student_academic_program` se normaliza a los valores de WordPress:
+- `tech_mba` (`Máster TECH MBA`)
+- `ia_generativa` (`Máster en Inteligencia Artificial`)
+- `data_science` (`Máster en Data Science`)
 
 ## Pruebas
 

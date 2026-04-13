@@ -56,8 +56,10 @@ class CheckoutLinkPort(Protocol):
         self,
         *,
         product_id: int,
-        quantity: int,
         billing: WooBilling,
         shipping: WooShipping,
+        student_id_type: str | None = None,
+        student_id_number: str | None = None,
+        student_academic_program: str | None = None,
     ) -> str:
         """Build a WooCommerce checkout URL with prefilled parameters."""

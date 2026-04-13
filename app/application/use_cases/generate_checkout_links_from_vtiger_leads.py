@@ -1,4 +1,5 @@
 import logging
+import unicodedata
 
 from app.domain.entities import (
     CRMLeadForSync,
@@ -68,6 +69,22 @@ class GenerateCheckoutLinksFromVtigerLeadsUseCase:
                 continue
 
             country = lead.country or self._default_country
+            program_slug = _normalize_academic_program(lead.student_academic_program)
+            if program_slug is None:
+                failed += 1
+                items.append(
+                    LeadCheckoutLinkItemResult(
+                        lead_id=lead.lead_id,
+                        status="failed",
+                        error=(
+                            "Invalid student_academic_program. Allowed values: "
+                            "tech_mba, ia_generativa, data_science "
+                            "(or their WordPress labels)."
+                        ),
+                    )
+                )
+                continue
+
             billing = WooBilling(
                 first_name=lead.first_name or "",
                 last_name=lead.last_name or "",
@@ -91,9 +108,11 @@ class GenerateCheckoutLinksFromVtigerLeadsUseCase:
 
             checkout_url = self._checkout_link_builder.build_checkout_url(
                 product_id=lead.product_id or 0,
-                quantity=1,
                 billing=billing,
                 shipping=shipping,
+                student_id_type=lead.student_id_type,
+                student_id_number=lead.student_id_number,
+                student_academic_program=program_slug,
             )
             generated += 1
             items.append(
@@ -136,8 +155,36 @@ class GenerateCheckoutLinksFromVtigerLeadsUseCase:
             "last_name": lead.last_name,
             "email": lead.email,
             "phone": lead.phone,
+            "student_id_type": lead.student_id_type,
+            "student_id_number": lead.student_id_number,
+            "student_academic_program": lead.student_academic_program,
         }
         missing = [name for name, value in required_fields.items() if not value]
         if missing:
             return f"Missing required lead fields: {', '.join(missing)}"
         return None
+
+
+def _normalize_text(value: str) -> str:
+    collapsed = " ".join(value.strip().split())
+    without_accents = unicodedata.normalize("NFKD", collapsed)
+    ascii_only = "".join(ch for ch in without_accents if not unicodedata.combining(ch))
+    return ascii_only.lower()
+
+
+def _normalize_academic_program(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = _normalize_text(value)
+    if not normalized:
+        return None
+
+    mapping = {
+        "tech_mba": "tech_mba",
+        "master tech mba": "tech_mba",
+        "ia_generativa": "ia_generativa",
+        "master en inteligencia artificial": "ia_generativa",
+        "data_science": "data_science",
+        "master en data science": "data_science",
+    }
+    return mapping.get(normalized)

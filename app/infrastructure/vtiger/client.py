@@ -234,10 +234,14 @@ class VtigerClient(CRMClientPort):
         product_field = self._settings.vtiger_lead_field_product_id
         woo_order_field = self._settings.vtiger_lead_field_woo_order_id
         sync_status_field = self._settings.vtiger_lead_field_sync_status
+        student_id_type_field = self._settings.vtiger_lead_field_student_id_type
+        student_id_number_field = self._settings.vtiger_lead_field_student_id_number
+        student_program_field = self._settings.vtiger_lead_field_student_academic_program
         escaped_status = sync_status_value.replace("'", "\\'")
         query = (
             "SELECT id, firstname, lastname, email, phone, lane, city, state, code, country, "
-            f"{product_field}, {woo_order_field}, {sync_status_field} "
+            f"{product_field}, {woo_order_field}, {sync_status_field}, "
+            f"{student_id_type_field}, {student_id_number_field}, {student_program_field} "
             "FROM Leads "
             f"WHERE {sync_status_field} = '{escaped_status}' "
             f"LIMIT {limit};"
@@ -275,6 +279,11 @@ class VtigerClient(CRMClientPort):
                     product_id=_to_int(item.get(product_field)),
                     woo_order_id=_clean_nullable(item.get(woo_order_field)),
                     sync_status=_clean_nullable(item.get(sync_status_field)),
+                    student_id_type=_clean_nullable(item.get(student_id_type_field)),
+                    student_id_number=_clean_nullable(item.get(student_id_number_field)),
+                    student_academic_program=_clean_nullable(
+                        item.get(student_program_field)
+                    ),
                 )
             )
         return leads
