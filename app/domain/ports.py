@@ -1,28 +1,9 @@
 from typing import Protocol
 
-from app.domain.entities import (
-    CRMCreateResult,
-    CRMLeadForSync,
-    CRMLeadSummary,
-    ClientLead,
-    WooBilling,
-    WooOrderInput,
-    WooOrderResult,
-    WooShipping,
-)
+from app.domain.entities import CRMLeadForSync, WooBilling, WooShipping
 
 
 class CRMClientPort(Protocol):
-    def create_contact(
-        self, contact: ClientLead, request_id: str | None = None
-    ) -> CRMCreateResult:
-        """Create a contact in CRM and return its identifier."""
-
-    def list_leads(
-        self, limit: int = 20, request_id: str | None = None
-    ) -> list[CRMLeadSummary]:
-        """List leads from CRM."""
-
     def list_leads_for_sync(
         self,
         *,
@@ -30,25 +11,12 @@ class CRMClientPort(Protocol):
         sync_status_value: str,
         request_id: str | None = None,
     ) -> list[CRMLeadForSync]:
-        """List leads that are candidates to sync with WooCommerce."""
+        """List leads that are candidates to generate checkout links."""
 
-    def update_lead_sync_result(
-        self,
-        *,
-        lead_id: str,
-        sync_status: str,
-        woo_order_id: str | None = None,
-        sync_error: str | None = None,
-        request_id: str | None = None,
-    ) -> None:
-        """Persist synchronization result in lead custom fields."""
-
-
-class WooCommercePort(Protocol):
-    def create_order(
-        self, order: WooOrderInput, request_id: str | None = None
-    ) -> WooOrderResult:
-        """Create an order in WooCommerce."""
+    def get_lead_for_checkout(
+        self, *, lead_id: str, request_id: str | None = None
+    ) -> CRMLeadForSync | None:
+        """Get a single lead by id for checkout-link resolution."""
 
 
 class CheckoutLinkPort(Protocol):
@@ -63,3 +31,11 @@ class CheckoutLinkPort(Protocol):
         student_academic_program: str | None = None,
     ) -> str:
         """Build a WooCommerce checkout URL with prefilled parameters."""
+
+
+class CheckoutLinkIdentityPort(Protocol):
+    def create_link_id(self, lead_id: str) -> str:
+        """Create deterministic link id for a lead id."""
+
+    def get_lead_id(self, link_id: str) -> str | None:
+        """Validate link id and return embedded lead id."""

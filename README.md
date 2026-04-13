@@ -1,6 +1,9 @@
 # Formulario CRM (FastAPI + Vtiger + WooCommerce)
 
-Aplicacion con formulario HTML para crear pre-contactos en `Leads`, API JSON para listar leads en Vtiger y API JSON para generar checkout links de WooCommerce a partir de datos de Vtiger.
+Servicio API para cron jobs que:
+- lee leads pendientes desde Vtiger,
+- genera links estaticos de pago,
+- redirige cada link al checkout final de WooCommerce con datos prellenados.
 
 ## Requisitos
 
@@ -15,32 +18,24 @@ Aplicacion con formulario HTML para crear pre-contactos en `Leads`, API JSON par
    - `VTIGER_USERNAME`
    - `VTIGER_ACCESS_KEY`
    - `VTIGER_TIMEOUT_SECONDS`
-   - `VTIGER_ASSIGNED_USER_ID` (opcional)
-3. Completa credenciales de WooCommerce:
-   - `WOO_BASE_URL`
-   - `WOO_CONSUMER_KEY`
-   - `WOO_CONSUMER_SECRET`
-   - `WOO_API_VERSION` (default `wc/v3`)
-   - `WOO_TIMEOUT_SECONDS`
-   - `WOO_QUERY_STRING_AUTH` (`true` o `false`)
-   - `WOO_CHECKOUT_PATH` (default `/checkout/`)
-4. Configura integracion Vtiger -> WooCommerce:
+3. Configura campos de Leads en Vtiger:
    - `VTIGER_LEAD_FIELD_PRODUCT_ID`
    - `VTIGER_LEAD_FIELD_WOO_ORDER_ID`
    - `VTIGER_LEAD_FIELD_SYNC_STATUS`
-   - `VTIGER_LEAD_FIELD_SYNC_ERROR`
    - `VTIGER_LEAD_FIELD_STUDENT_ID_TYPE`
    - `VTIGER_LEAD_FIELD_STUDENT_ID_NUMBER`
    - `VTIGER_LEAD_FIELD_STUDENT_ACADEMIC_PROGRAM`
    - `VTIGER_SYNC_PENDING_VALUE`
-   - `VTIGER_SYNC_PROCESSED_VALUE`
-   - `VTIGER_SYNC_FAILED_VALUE`
    - `VTIGER_SYNC_BATCH_LIMIT_DEFAULT`
+4. Configura WooCommerce checkout:
+   - `WOO_BASE_URL`
+   - `WOO_CHECKOUT_PATH` (ej: `/finalizar-compra/`)
    - `WOO_DEFAULT_COUNTRY`
-   - `WOO_DEFAULT_PAYMENT_METHOD`
-   - `WOO_DEFAULT_PAYMENT_METHOD_TITLE`
-   - `WOO_DEFAULT_SET_PAID`
+5. Configura seguridad de integracion:
    - `INTEGRATION_API_KEY`
+   - `CHECKOUT_LINK_SIGNING_KEY`
+6. Opcional para links publicos absolutos:
+   - `APP_PUBLIC_BASE_URL`
 
 ## Ejecucion
 
@@ -48,62 +43,33 @@ Aplicacion con formulario HTML para crear pre-contactos en `Leads`, API JSON par
 uvicorn app.main:app --reload
 ```
 
-## Endpoints
+## Endpoints activos
 
 - `GET /health`
-- `GET /clientes/form`
-- `POST /clientes/form`
-- `GET /leads?limit=20` (JSON)
-- `POST /woocommerce/orders` (JSON, **deprecated**)
-- `POST /integrations/vtiger/leads-to-orders/sync?limit=50` (JSON + `X-Integration-Key`)
 - `POST /integrations/vtiger/leads-to-checkout-links/sync?limit=50` (JSON + `X-Integration-Key`)
+- `GET /checkout-links/{link_id}` (redirect 307 a checkout final de Woo)
 
-### Ejemplo rapido para crear orden
-
-```bash
-curl -X POST http://localhost:8000/woocommerce/orders \
-  -H "Content-Type: application/json" \
-  -d '{
-    "payment_method": "bacs",
-    "payment_method_title": "Transferencia bancaria",
-    "set_paid": false,
-    "billing": {
-      "first_name": "Ana",
-      "last_name": "Perez",
-      "address_1": "Calle 1",
-      "city": "Bogota",
-      "country": "CO",
-      "email": "ana@example.com",
-      "phone": "3001234567"
-    },
-    "shipping": {
-      "first_name": "Ana",
-      "last_name": "Perez",
-      "address_1": "Calle 1",
-      "city": "Bogota",
-      "country": "CO"
-    },
-    "line_items": [
-      {"product_id": 55, "quantity": 1}
-    ]
-  }'
-```
-
-### Ejemplo cron externo
+## Ejemplo cron externo
 
 ```bash
 curl -X POST "http://localhost:8000/integrations/vtiger/leads-to-checkout-links/sync?limit=50" \
   -H "X-Integration-Key: $INTEGRATION_API_KEY"
 ```
 
-La URL generada por cada lead tiene formato:
+Respuesta esperada:
+- `processed`, `generated`, `failed`, `skipped`
+- `items[]` con `lead_id`, `status`, `link_id`, `static_link` o `error`
+
+El `static_link` es deterministico por `lead_id`, por lo que el mismo lead mantiene un unico link estable.
+
+La URL final de checkout se construye con esta forma:
 
 `https://tu-tienda/finalizar-compra/?add-to-cart={product_id}&student_first_name=...&student_last_name=...&student_id_type=...&student_id_number=...&student_country=...&student_state=...&student_address=...&student_postcode=...&student_phone=...&student_email=...&student_academic_program=...`
 
-`student_academic_program` se normaliza a los valores de WordPress:
-- `tech_mba` (`Máster TECH MBA`)
-- `ia_generativa` (`Máster en Inteligencia Artificial`)
-- `data_science` (`Máster en Data Science`)
+`student_academic_program` se normaliza a:
+- `tech_mba`
+- `ia_generativa`
+- `data_science`
 
 ## Pruebas
 
@@ -120,12 +86,11 @@ pytest
 docker compose up --build -d
 ```
 
-3. Accede a:
+3. Verificar:
 
 - `http://localhost:8000/health`
-- `http://localhost:8000/clientes/form`
 
-4. Ver logs:
+4. Logs:
 
 ```bash
 docker compose logs -f web

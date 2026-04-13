@@ -18,17 +18,9 @@ class CRMUnexpectedError(DomainError):
     """Unexpected CRM response or unknown failure."""
 
 
-class WooValidationError(DomainError):
-    """WooCommerce rejected request data."""
-
-
-class WooAuthenticationError(DomainError):
-    """Authentication against WooCommerce failed."""
-
-
-class WooNetworkError(DomainError):
-    """Network or timeout issue while calling WooCommerce."""
-
-
 class WooUnexpectedError(DomainError):
-    """Unexpected WooCommerce response or unknown failure."""
+    """Unexpected WooCommerce response or missing configuration."""
+
+
+class InvalidCheckoutLinkError(DomainError):
+    """Static checkout link is invalid."""

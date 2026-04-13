@@ -9,7 +9,9 @@ from app.presentation.dependencies import (
 
 
 class SuccessfulCheckoutLinksUseCase:
-    def execute(self, limit=None, request_id=None) -> LeadCheckoutLinkBatchResult:  # noqa: ANN001
+    def execute(
+        self, *, public_base_url, limit=None, request_id=None  # noqa: ANN001
+    ) -> LeadCheckoutLinkBatchResult:
         return LeadCheckoutLinkBatchResult(
             processed=2,
             generated=1,
@@ -19,7 +21,8 @@ class SuccessfulCheckoutLinksUseCase:
                 LeadCheckoutLinkItemResult(
                     lead_id="11x1",
                     status="generated",
-                    checkout_url="https://shop.example.com/checkout/?add-to-cart=55&quantity=1",
+                    link_id="11x1.sig",
+                    static_link="https://api.example.com/checkout-links/11x1.sig",
                 ),
                 LeadCheckoutLinkItemResult(
                     lead_id="11x2",
@@ -36,6 +39,8 @@ def _settings_with_key() -> Settings:
         vtiger_username="api_user",
         vtiger_access_key="access-key",
         integration_api_key="test-key",
+        app_public_base_url="https://api.example.com",
+        checkout_link_signing_key="test-signing-key",
     )
 
 
@@ -71,4 +76,5 @@ def test_checkout_links_endpoint_returns_batch_json() -> None:
     assert payload["generated"] == 1
     assert payload["failed"] == 1
     assert payload["items"][0]["status"] == "generated"
-    assert "add-to-cart=55" in payload["items"][0]["checkout_url"]
+    assert payload["items"][0]["link_id"] == "11x1.sig"
+    assert payload["items"][0]["static_link"] == "https://api.example.com/checkout-links/11x1.sig"

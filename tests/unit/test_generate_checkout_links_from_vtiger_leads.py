@@ -1,7 +1,7 @@
 from app.application.use_cases.generate_checkout_links_from_vtiger_leads import (
     GenerateCheckoutLinksFromVtigerLeadsUseCase,
 )
-from app.domain.entities import CRMLeadForSync, WooBilling, WooShipping
+from app.domain.entities import CRMLeadForSync
 
 
 class FakeCRMClient:
@@ -14,28 +14,12 @@ class FakeCRMClient:
         return self._leads[:limit]
 
 
-class FakeCheckoutBuilder:
-    def __init__(self) -> None:
-        self.last_country: str | None = None
-        self.last_program: str | None = None
+class FakeLinkIdentity:
+    def create_link_id(self, lead_id: str) -> str:
+        return f"{lead_id}.sig"
 
-    def build_checkout_url(
-        self,
-        *,
-        product_id: int,
-        billing: WooBilling,
-        shipping: WooShipping,
-        student_id_type: str | None = None,
-        student_id_number: str | None = None,
-        student_academic_program: str | None = None,
-    ) -> str:
-        self.last_country = billing.country
-        self.last_program = student_academic_program
-        return (
-            "https://shop.example.com/checkout/?"
-            f"add-to-cart={product_id}&student_id_type={student_id_type}"
-            f"&student_academic_program={student_academic_program}"
-        )
+    def get_lead_id(self, link_id: str) -> str | None:
+        raise NotImplementedError
 
 
 def test_generate_checkout_links_batch_result_counts() -> None:
@@ -97,26 +81,25 @@ def test_generate_checkout_links_batch_result_counts() -> None:
             ),
         ]
     )
-    link_builder = FakeCheckoutBuilder()
     use_case = GenerateCheckoutLinksFromVtigerLeadsUseCase(
         crm_client=crm_client,
-        checkout_link_builder=link_builder,
+        link_identity=FakeLinkIdentity(),
         pending_status="pending",
-        default_country="CO",
         batch_limit_default=50,
     )
 
-    result = use_case.execute()
+    result = use_case.execute(public_base_url="https://api.example.com")
 
     assert result.processed == 3
     assert result.generated == 1
     assert result.failed == 1
     assert result.skipped == 1
     assert result.items[0].status == "generated"
-    assert result.items[0].checkout_url is not None
-    assert "student_academic_program=ia_generativa" in result.items[0].checkout_url
-    assert link_builder.last_country == "CO"
-    assert link_builder.last_program == "ia_generativa"
+    assert result.items[0].link_id == "11x1.sig"
+    assert (
+        result.items[0].static_link
+        == "https://api.example.com/checkout-links/11x1.sig"
+    )
 
 
 def test_generate_checkout_links_fails_with_unknown_program() -> None:
@@ -142,16 +125,14 @@ def test_generate_checkout_links_fails_with_unknown_program() -> None:
             )
         ]
     )
-    link_builder = FakeCheckoutBuilder()
     use_case = GenerateCheckoutLinksFromVtigerLeadsUseCase(
         crm_client=crm_client,
-        checkout_link_builder=link_builder,
+        link_identity=FakeLinkIdentity(),
         pending_status="pending",
-        default_country="CO",
         batch_limit_default=50,
     )
 
-    result = use_case.execute()
+    result = use_case.execute(public_base_url="https://api.example.com")
 
     assert result.processed == 1
     assert result.generated == 0

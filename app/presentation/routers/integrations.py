@@ -6,47 +6,25 @@ from pydantic import BaseModel
 from app.application.use_cases.generate_checkout_links_from_vtiger_leads import (
     GenerateCheckoutLinksFromVtigerLeadsUseCase,
 )
-from app.application.use_cases.sync_vtiger_leads_to_woo_orders import (
-    SyncVtigerLeadsToWooOrdersUseCase,
-)
 from app.domain.errors import (
     CRMAuthenticationError,
     CRMNetworkError,
     CRMUnexpectedError,
     CRMValidationError,
-    WooAuthenticationError,
-    WooNetworkError,
-    WooUnexpectedError,
-    WooValidationError,
 )
 from app.infrastructure.config import Settings, get_settings
 from app.presentation.dependencies import (
     get_generate_checkout_links_from_vtiger_leads_use_case,
-    get_sync_vtiger_leads_to_woo_orders_use_case,
 )
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
 
-class LeadSyncItemResponse(BaseModel):
-    lead_id: str
-    status: str
-    woo_order_id: str | None = None
-    error: str | None = None
-
-
-class LeadSyncBatchResponse(BaseModel):
-    processed: int
-    created: int
-    failed: int
-    skipped: int
-    items: list[LeadSyncItemResponse]
-
-
 class LeadCheckoutLinkItemResponse(BaseModel):
     lead_id: str
     status: str
-    checkout_url: str | None = None
+    link_id: str | None = None
+    static_link: str | None = None
     error: str | None = None
 
 
@@ -80,52 +58,6 @@ def _validate_integration_key(
         )
 
 
-@router.post("/vtiger/leads-to-orders/sync", response_model=LeadSyncBatchResponse)
-async def sync_vtiger_leads_to_orders(
-    request: Request,
-    limit: int | None = Query(default=None, ge=1, le=500),
-    integration_key: str | None = Header(default=None, alias="X-Integration-Key"),
-    settings: Settings = Depends(get_settings),
-    use_case: SyncVtigerLeadsToWooOrdersUseCase = Depends(
-        get_sync_vtiger_leads_to_woo_orders_use_case
-    ),
-) -> LeadSyncBatchResponse:
-    _validate_integration_key(settings=settings, integration_key=integration_key)
-
-    request_id = getattr(request.state, "request_id", None)
-
-    try:
-        result = use_case.execute(limit=limit, request_id=request_id)
-    except (CRMValidationError, WooValidationError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-    except (CRMAuthenticationError, WooAuthenticationError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
-        ) from exc
-    except (CRMNetworkError, WooNetworkError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail=str(exc),
-        ) from exc
-    except (CRMUnexpectedError, WooUnexpectedError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
-        ) from exc
-
-    return LeadSyncBatchResponse(
-        processed=result.processed,
-        created=result.created,
-        failed=result.failed,
-        skipped=result.skipped,
-        items=[LeadSyncItemResponse.model_validate(asdict(item)) for item in result.items],
-    )
-
-
 @router.post(
     "/vtiger/leads-to-checkout-links/sync",
     response_model=LeadCheckoutLinkBatchResponse,
@@ -141,25 +73,30 @@ async def generate_checkout_links_from_vtiger_leads(
 ) -> LeadCheckoutLinkBatchResponse:
     _validate_integration_key(settings=settings, integration_key=integration_key)
     request_id = getattr(request.state, "request_id", None)
+    public_base_url = settings.app_public_base_url or str(request.base_url).rstrip("/")
 
     try:
-        result = use_case.execute(limit=limit, request_id=request_id)
-    except (CRMValidationError, WooValidationError) as exc:
+        result = use_case.execute(
+            public_base_url=public_base_url,
+            limit=limit,
+            request_id=request_id,
+        )
+    except CRMValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
-    except (CRMAuthenticationError, WooAuthenticationError) as exc:
+    except CRMAuthenticationError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
-    except (CRMNetworkError, WooNetworkError) as exc:
+    except CRMNetworkError as exc:
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail=str(exc),
         ) from exc
-    except (CRMUnexpectedError, WooUnexpectedError) as exc:
+    except CRMUnexpectedError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
